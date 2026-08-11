@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { Suspense } from 'react';
 import Login from '@/components/Login';
 
 export default function LoginPage() {
@@ -10,7 +11,10 @@ export default function LoginPage() {
         <p className="text-lg text-center">
           A simple inventory management system for your business.
         </p>
-        <Login />
+        {/* Login reads the ?next= param, which needs a boundary to prerender. */}
+        <Suspense fallback={null}>
+          <Login />
+        </Suspense>
       </section>
     </main>
   );

@@ -1,12 +1,8 @@
 import * as React from 'react';
 import Link from 'next/link';
-import { ShoppingCart } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
+// The label is visible now, so no tooltip: it would just repeat the text.
 function MenuItem({
   href,
   name,
@@ -19,22 +15,19 @@ function MenuItem({
   isActive?: boolean;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link
-          href={href}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8 ${
-            isActive
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted-foreground'
-          }`}
-        >
-          {children}
-          <span className="sr-only">{name}</span>
-        </Link>
-      </TooltipTrigger>
-      <TooltipContent side="right">{name}</TooltipContent>
-    </Tooltip>
+    <Link
+      href={href}
+      aria-current={isActive ? 'page' : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+        isActive
+          ? 'bg-accent font-medium text-accent-foreground'
+          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+      )}
+    >
+      {children}
+      {name}
+    </Link>
   );
 }
 

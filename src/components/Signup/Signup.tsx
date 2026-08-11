@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 
 export default function SignupForm() {
-  const route = useRouter();
+  const router = useRouter();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [name, setName] = useState<string>('');
@@ -24,52 +24,54 @@ export default function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<boolean>(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: 'Signup failed',
-        description: error,
-        variant: 'destructive',
-      });
-      setError(null);
-    }
-  }, [error, toast]);
+  const fail = (description: string) =>
+    toast({ title: 'Signup failed', description, variant: 'destructive' });
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      fail('Passwords do not match');
+      return;
+    }
+    // PocketBase rejects shorter passwords server-side; catch it here so the
+    // company record isn't created and rolled back for nothing.
+    if (password.length < 8) {
+      fail('Password must be at least 8 characters');
       return;
     }
 
+    setPending(true);
     try {
-      const form = {
-        email,
-        password,
-        name,
-        phone,
-        confirmPassword,
-        firstName,
-        lastName,
-      };
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+          phone,
+          confirmPassword,
+          firstName,
+          lastName,
+        }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (data?.id) {
-        route.push('/');
-      } else {
-        setError('Failed to create company account');
+      if (!response.ok) {
+        fail(data.error || 'Failed to create company account');
+        return;
       }
-    } catch (err) {
-      setError('Failed to create company account');
+
+      router.push('/dashboard');
+      router.refresh();
+    } catch {
+      fail('Could not reach the server. Is PocketBase running?');
+    } finally {
+      setPending(false);
     }
   };
 
@@ -106,7 +108,7 @@ export default function SignupForm() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="email">Company Name</Label>
+            <Label htmlFor="name">Company Name</Label>
             <Input
               id="name"
               type="text"
@@ -128,7 +130,7 @@ export default function SignupForm() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="email">Contact Phone</Label>
+            <Label htmlFor="phone">Contact Phone</Label>
             <Input
               id="phone"
               type="text"
@@ -151,7 +153,7 @@ export default function SignupForm() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Confirm Password</Label>
+            <Label htmlFor="confirm-password">Confirm Password</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -163,14 +165,14 @@ export default function SignupForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full">
-            Register
+          <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? 'Creating account...' : 'Register'}
           </Button>
         </CardFooter>
       </form>
-      <div className="text-sm p-6 text-center	">
+      <div className="text-sm p-6 text-center">
         Already have an account!{' '}
-        <Link href="/auth/register" className="underline">
+        <Link href="/auth/login" className="underline">
           Login
         </Link>
       </div>

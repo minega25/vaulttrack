@@ -1,32 +1,30 @@
-'use client';
-import * as React from 'react';
-import { MoreHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import ProductModal from '../ProductModal';
+import DeleteAction from '@/components/DeleteAction';
+import ProductModal, { type ProductValues } from '@/components/ProductModal';
+import ResourceActions from '@/components/ResourceActions';
 
-function ProductActionButtons({ id }: { id: string }) {
+type Option = { value: string; label: string };
+
+export default function ProductActionButtons({
+  product,
+  categories,
+  suppliers,
+}: {
+  product: ProductValues & { id: string; name: string };
+  categories: Option[];
+  suppliers: Option[];
+}) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button aria-haspopup="true" size="icon" variant="ghost">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <ProductModal id={id} />
-        <DropdownMenuItem>Delete</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ResourceActions>
+      <ProductModal
+        product={product}
+        categories={categories}
+        suppliers={suppliers}
+      />
+      <DeleteAction
+        endpoint={`/api/products/${product.id}`}
+        label="product"
+        subject={product.name}
+      />
+    </ResourceActions>
   );
 }
-
-export default ProductActionButtons;

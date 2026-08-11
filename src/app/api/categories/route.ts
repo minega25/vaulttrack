@@ -1,21 +1,20 @@
-import db from '@/db';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { createCategory, listCategories } from '@/db';
+import { apiError } from '@/lib/api';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const result = await db.getCategories();
+    return NextResponse.json(await listCategories());
+  } catch (err) {
+    return apiError(err, 'Failed to load categories');
+  }
+}
 
-    return NextResponse.json(result);
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || err.toString() }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    return NextResponse.json(await createCategory(body));
+  } catch (err) {
+    return apiError(err, 'Failed to create category');
   }
 }

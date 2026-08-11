@@ -1,25 +1,9 @@
 import Link from 'next/link';
-import { File, ListFilter } from 'lucide-react';
-
+import { listCategories, listProducts, listSuppliers } from '@/db';
+import PageShell from '@/components/PageShell';
+import ProductActionButtons from '@/components/ProductActionButtons';
+import ProductModal from '@/components/ProductModal';
 import { Badge } from '@/components/ui/badge';
-
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -28,154 +12,153 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import db from '@/db';
-import ProductModal from '@/components/ProductModal';
-import ProductActionButtons from '@/components/ProductActionButtons';
 
-export default async function Products() {
-  const products = (await db.getProducts()) || [];
-  const categories = (await db.getCategories()) || [];
+export const dynamic = 'force-dynamic';
+
+const TABS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'archived', label: 'Archived' },
+];
+
+export default async function Products({
+  searchParams,
+}: {
+  searchParams: { status?: string };
+}) {
+  const status = TABS.some((t) => t.value === searchParams.status)
+    ? searchParams.status!
+    : 'all';
+
+  const [products, categories, suppliers] = await Promise.all([
+    listProducts(status),
+    listCategories(),
+    listSuppliers(),
+  ]);
+
+  const categoryOptions = categories.map((c) => ({
+    value: c.id,
+    label: c.name as string,
+  }));
+  const supplierOptions = suppliers.map((s) => ({
+    value: s.id,
+    label: s.name as string,
+  }));
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          <Breadcrumb className="hidden md:flex">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="#">Dashboard</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="#">Products</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>All Products</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <Tabs defaultValue="all">
-            <div className="flex items-center">
-              <div className="ml-auto flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1">
-                      <ListFilter className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Filter
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem checked>
-                      Active
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem>Draft</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem>
-                      Archived
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button size="sm" variant="outline" className="h-8 gap-1">
-                  <File className="h-3.5 w-3.5" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Export
-                  </span>
-                </Button>
-                <ProductModal />
-              </div>
-            </div>
-            <TabsContent value="all">
-              <Card x-chunk="dashboard-06-chunk-0">
-                <CardHeader>
-                  <CardTitle>Products</CardTitle>
-                  <CardDescription>
-                    Manage your products and view their sales performance.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Price
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Reorder Level
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Lead Time
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Category
-                        </TableHead>
-                        <TableHead>
-                          <span className="sr-only">Actions</span>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {products.map((product) => {
-                        const category =
-                          categories.find(
-                            (category) => category.id === product.category
-                          ) || '';
-                        return (
-                          <TableRow key={product.id}>
-                            <TableCell className="font-medium">
-                              <Link href={`/products/${product.id}`}>
-                                {product.name}
-                              </Link>
-                            </TableCell>
-                            <TableCell>{product.description}</TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {product.unit_price}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {product.reorder_level}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {product.lead_time}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Badge variant="outline">
-                                {category?.name || 'Uncategorized'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <ProductActionButtons id={product.id} />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
+    <PageShell
+      crumb="Products"
+      title="Products"
+      description="Manage your catalogue and restocking thresholds."
+      action={
+        <ProductModal
+          categories={categoryOptions}
+          suppliers={supplierOptions}
+        />
+      }
+    >
+      {/* Filtering happens server-side via the query string, so these stay
+          shareable links rather than client-only state. */}
+      <div className="mb-4 flex gap-1">
+        {TABS.map((tab) => (
+          <Link
+            key={tab.value}
+            href={
+              tab.value === 'all'
+                ? '/dashboard/products'
+                : `/dashboard/products?status=${tab.value}`
+            }
+            className={
+              status === tab.value
+                ? 'rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground'
+                : 'rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground'
+            }
+          >
+            {tab.label}
+          </Link>
+        ))}
       </div>
-    </div>
+
+      {products.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          {status === 'all'
+            ? 'No products yet. Add your first one to get started.'
+            : `No ${status} products.`}
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead className="hidden md:table-cell">SKU</TableHead>
+              <TableHead className="hidden md:table-cell">Category</TableHead>
+              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="hidden text-right md:table-cell">
+                Reorder At
+              </TableHead>
+              <TableHead className="hidden text-right md:table-cell">
+                Lead Time
+              </TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.map((product) => (
+              <TableRow key={product.id}>
+                <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {product.sku || '--'}
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <Badge variant="outline">
+                    {product.expand?.category?.name ?? 'Uncategorized'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {Number(product.unit_price ?? 0).toLocaleString()}
+                </TableCell>
+                <TableCell className="hidden text-right tabular-nums md:table-cell">
+                  {Number(product.reorder_level ?? 0)}
+                </TableCell>
+                <TableCell className="hidden text-right tabular-nums md:table-cell">
+                  {Number(product.lead_time ?? 0)}d
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      product.status === 'active' ? 'outline' : 'secondary'
+                    }
+                  >
+                    {product.status || 'active'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <ProductActionButtons
+                    product={{
+                      id: product.id,
+                      name: product.name as string,
+                      description: product.description as string,
+                      sku: product.sku as string,
+                      unit_price: Number(product.unit_price ?? 0),
+                      reorder_level: Number(product.reorder_level ?? 0),
+                      lead_time: Number(product.lead_time ?? 0),
+                      category: product.category as string,
+                      supplier: product.supplier as string,
+                      status: product.status as string,
+                    }}
+                    categories={categoryOptions}
+                    suppliers={supplierOptions}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </PageShell>
   );
 }
-
-export const fetchCache = 'default-no-store';

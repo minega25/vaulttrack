@@ -1,35 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from './db';
+import { AUTH_COOKIE, isSignedIn } from '@/db/session';
 
-export async function middleware(request: NextRequest) {
-  // We print the request method and URL in the logs to see what's happening
-  console.log(`[middleware] ${request.method} ${request.url}`);
-  // To see more about db.isAuthenticated, check file src/db/index.ts
-  const isLoggedIn = await db.isAuthenticated(request.cookies as any);
-  if (
-    request.nextUrl.pathname &&
-    request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // If already logged in and the request is to go to the login page,
-    // Skip it and redirect to the home page.
-    if (isLoggedIn) {
+// Everything under /auth is reachable signed out; everything else needs a session.
+const PUBLIC_PREFIXES = ['/auth'];
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const signedIn = isSignedIn(request.cookies.get(AUTH_COOKIE)?.value);
+  const isPublic = PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+  if (isPublic) {
+    // Already signed in? Skip the login/register pages.
+    if (signedIn) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    return;
+    return NextResponse.next();
   }
 
-  // Anything after this is for protected routes, in our case,
-  // Only the routes that start with /auth are not protected.
-  // If you have other pages that are not protected you can
-  // Handle them before the isLoggedIn check below.
-
-  // Check if the user is logged in
-  if (!isLoggedIn) {
-    // If not logged in, redirect them to the login page.
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+  if (!signedIn) {
+    const url = new URL('/auth/login', request.url);
+    // Remember where they were headed so login can send them back.
+    if (pathname !== '/') url.searchParams.set('next', pathname);
+    return NextResponse.redirect(url);
   }
 
-  // Continue without any request changes.
   return NextResponse.next();
 }
 

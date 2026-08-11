@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,46 +16,47 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 
 export default function LoginForm() {
-  const route = useRouter();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<boolean>(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    console.log('error', error);
-    if (error) {
-      toast({
-        title: 'Authentication failed',
-        description: 'Please check your email and password and try again',
-        variant: 'destructive',
-      });
-      setError(null);
-    }
-  }, [error, toast]);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setPending(true);
 
     try {
-      const form = { email, password };
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ email, password }),
       });
+
       if (!response.ok) {
-        setError('Failed to authenticate user');
+        const data = await response.json().catch(() => ({}));
+        toast({
+          title: 'Authentication failed',
+          description: data.error || 'Please check your email and password.',
+          variant: 'destructive',
+        });
         return;
       }
-      const data = await response.json();
-      if (data?.token) {
-        route.push('/dashboard');
-      } else {
-        setError('Failed to authenticate user');
-      }
-    } catch (err) {
-      setEmail('Failed to authenticate user');
+
+      // The session lives in an httpOnly cookie, so refresh() is what makes
+      // the server components pick it up before we land on the dashboard.
+      const next = searchParams.get('next') || '/dashboard';
+      router.push(next);
+      router.refresh();
+    } catch {
+      toast({
+        title: 'Authentication failed',
+        description: 'Could not reach the server. Is PocketBase running?',
+        variant: 'destructive',
+      });
+    } finally {
+      setPending(false);
     }
   };
 
@@ -93,12 +94,12 @@ export default function LoginForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full">
-            Sign in
+          <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? 'Signing in...' : 'Sign in'}
           </Button>
         </CardFooter>
       </form>
-      <div className="text-sm p-6 text-center	">
+      <div className="text-sm p-6 text-center">
         Don&apos;t have an account yet!{' '}
         <Link href="/auth/register" className="underline">
           Register Business

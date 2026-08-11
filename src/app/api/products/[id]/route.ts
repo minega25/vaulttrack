@@ -1,60 +1,39 @@
-import db from '@/db';
 import { NextResponse } from 'next/server';
+import { deleteProduct, getProduct, updateProduct } from '@/db';
+import { apiError } from '@/lib/api';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+type Params = { params: { id: string } };
+
+export async function GET(request: Request, { params }: Params) {
   try {
-    const result = await db.getProduct(params.id);
-
-    return NextResponse.json(result);
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || err.toString() }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const product = await getProduct(params.id);
+    // The form binds to category_id/supplier_id; the record stores the
+    // relations as category/supplier. Map them so editing pre-fills.
+    return NextResponse.json({
+      ...product,
+      category_id: product.category ?? '',
+      supplier_id: product.supplier ?? '',
+    });
+  } catch (err) {
+    return apiError(err, 'Failed to load product');
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request, { params }: Params) {
   try {
-    const {
-      name,
-      description,
-      unit_price,
-      reorder_level,
-      lead_time,
-      category_id,
-    } = await request.json();
-    const result = await db.updateProduct(
-      params.id,
-      name,
-      description,
-      unit_price,
-      reorder_level,
-      lead_time,
-      category_id
-    );
-
+    const body = await request.json();
+    const result = await updateProduct(params.id, body);
     return NextResponse.json(result);
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || err.toString() }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+  } catch (err) {
+    return apiError(err, 'Failed to update product');
+  }
+}
+
+export async function DELETE(request: Request, { params }: Params) {
+  try {
+    await deleteProduct(params.id);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return apiError(err, 'Failed to delete product');
   }
 }

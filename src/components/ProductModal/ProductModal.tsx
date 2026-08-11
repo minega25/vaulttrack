@@ -2,151 +2,126 @@
 import { PlusCircle } from 'lucide-react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { useEffect, useState } from 'react';
-import { RecordModel } from 'pocketbase';
-import { useToast } from '../ui/use-toast';
-import { DropdownMenuItem } from '../ui/dropdown-menu';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import EntityFormModal, {
+  NONE,
+  type FieldSpec,
+} from '@/components/EntityFormModal';
 
-const productSchema = z.object({
-  lead_time: z.coerce.number().int().positive(),
-  name: z.string().min(1),
-  unit_price: z.coerce.number().int().positive(),
-  reorder_level: z.coerce.number().int().positive(),
-  description: z.string().min(1),
-  category_id: z.string(),
+const schema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  description: z.string().optional(),
+  sku: z.string().optional(),
+  unit_price: z.coerce.number().min(0, 'Cannot be negative'),
+  reorder_level: z.coerce.number().int().min(0, 'Cannot be negative'),
+  lead_time: z.coerce.number().int().min(0, 'Cannot be negative'),
+  category_id: z.string().optional(),
+  supplier_id: z.string().optional(),
+  status: z.enum(['active', 'draft', 'archived']),
 });
 
-export default function Product({ id }: { id?: string }) {
-  const { toast } = useToast();
-  const [categories, setCategories] = useState<RecordModel[]>([]);
-  const [open, setOpen] = useState<boolean>(false);
-  const form = useForm<z.infer<typeof productSchema>>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      lead_time: 0,
-      name: '',
-      unit_price: 0,
-      reorder_level: 0,
-      description: '',
-      category_id: '',
+type Option = { value: string; label: string };
+
+export type ProductValues = {
+  id?: string;
+  name?: string;
+  description?: string;
+  sku?: string;
+  unit_price?: number;
+  reorder_level?: number;
+  lead_time?: number;
+  category?: string;
+  supplier?: string;
+  status?: string;
+};
+
+export default function ProductModal({
+  product,
+  categories,
+  suppliers,
+}: {
+  product?: ProductValues;
+  categories: Option[];
+  suppliers: Option[];
+}) {
+  const editing = Boolean(product?.id);
+
+  const fields: FieldSpec[] = [
+    {
+      name: 'name',
+      label: 'Product Name',
+      type: 'text',
+      placeholder: 'Macbook Pro 13',
     },
-  });
-
-  useEffect(() => {
-    fetchCategories();
-    async function fetchCategories() {
-      try {
-        fetch('/api/categories')
-          .then((res) => res.json())
-          .then((data) => {
-            setCategories(data);
-          });
-      } catch (err: any) {
-        console.error(err);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (id) {
-      fetch(`/api/products/${id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          form.reset(data);
-        });
-    }
-  }, [id, form]);
-
-  const addProduct = async (values: z.infer<typeof productSchema>) => {
-    try {
-      const res = await fetch('/api/products/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-      const data = await res.json();
-      toast({
-        title: 'Product added successfully',
-        description: 'The product has been added to your store.',
-      });
-      setOpen(false);
-    } catch (err: any) {
-      toast({
-        title: 'Failed to add product',
-        description: 'An error occurred while adding the product.',
-        variant: 'destructive',
-      });
-      console.error(err);
-    }
-  };
-
-  const editProduct = async (values: z.infer<typeof productSchema>) => {
-    try {
-      const res = await fetch(`/api/products/${id}/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-      const data = await res.json();
-      toast({
-        title: 'Product updated successfully',
-        description: 'The product has been updated.',
-      });
-      setOpen(false);
-    } catch (err: any) {
-      toast({
-        title: 'Failed to update product',
-        description: 'An error occurred while updating the product.',
-        variant: 'destructive',
-      });
-      console.error(err);
-    }
-  };
-
-  function onSubmit(values: z.infer<typeof productSchema>) {
-    if (id) {
-      editProduct(values);
-    } else {
-      addProduct(values);
-    }
-  }
+    {
+      name: 'sku',
+      label: 'SKU',
+      type: 'text',
+      placeholder: 'MBP-13',
+      description: 'Optional, but unique within your company.',
+    },
+    {
+      name: 'description',
+      label: 'Description',
+      type: 'text',
+      placeholder: 'A laptop computer',
+      full: true,
+    },
+    {
+      name: 'unit_price',
+      label: 'Unit Price',
+      type: 'number',
+      placeholder: '1000',
+    },
+    {
+      name: 'reorder_level',
+      label: 'Reorder Level',
+      type: 'number',
+      placeholder: '10',
+      description: 'Low stock at or below this quantity.',
+    },
+    {
+      name: 'lead_time',
+      label: 'Lead Time',
+      type: 'number',
+      placeholder: '3',
+      description: 'Days it takes to restock.',
+    },
+    {
+      name: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'draft', label: 'Draft' },
+        { value: 'archived', label: 'Archived' },
+      ],
+    },
+    {
+      name: 'category_id',
+      label: 'Category',
+      type: 'combobox',
+      placeholder: 'Select a category',
+      options: [{ value: NONE, label: 'Uncategorized' }, ...categories],
+      description: categories.length
+        ? undefined
+        : 'None yet. Add them under Categories.',
+    },
+    {
+      name: 'supplier_id',
+      label: 'Supplier',
+      type: 'combobox',
+      placeholder: 'Select a supplier',
+      options: [{ value: NONE, label: 'None' }, ...suppliers],
+    },
+  ];
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {id ? (
+    <EntityFormModal
+      title={editing ? 'Edit Product' : 'Add Product'}
+      description={editing ? undefined : 'Add a new product to your catalogue.'}
+      trigger={
+        editing ? (
           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
             Edit
           </DropdownMenuItem>
@@ -157,132 +132,29 @@ export default function Product({ id }: { id?: string }) {
               Add Product
             </span>
           </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{id ? 'Edit' : 'Add'} Product</DialogTitle>
-          {!id && (
-            <DialogDescription>
-              Add a new product to your store.
-            </DialogDescription>
-          )}
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Macbook Pro 13" {...field} />
-                  </FormControl>
-                  <FormDescription>The name of the product.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Input placeholder="A laptop computer" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    A brief description of the product.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="unit_price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Unit Price</FormLabel>
-                  <FormControl>
-                    <Input placeholder="1000" type="number" {...field} />
-                  </FormControl>
-                  <FormDescription>The price of the product.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="reorder_level"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Reorder Level</FormLabel>
-                  <FormControl>
-                    <Input placeholder="10" type="number" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    The minimum quantity of the product that should be in stock.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="lead_time"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lead Time</FormLabel>
-                  <FormControl>
-                    <Input placeholder="3" type="number" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    The number of days it takes to restock the product.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="category_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    The category of the product.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button type="submit">{id ? 'Edit' : 'Add'} Product</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+        )
+      }
+      schema={schema}
+      fields={fields}
+      defaultValues={{
+        name: product?.name ?? '',
+        description: product?.description ?? '',
+        sku: product?.sku ?? '',
+        unit_price: product?.unit_price ?? 0,
+        reorder_level: product?.reorder_level ?? 0,
+        lead_time: product?.lead_time ?? 0,
+        // Records store the relations as `category`/`supplier`; the form binds
+        // to `category_id`/`supplier_id`, which is what the API expects.
+        category_id: product?.category || NONE,
+        supplier_id: product?.supplier || NONE,
+        status: product?.status || 'active',
+      }}
+      submitTo={
+        editing ? `/api/products/${product!.id}` : '/api/products/create'
+      }
+      method={editing ? 'PUT' : 'POST'}
+      submitLabel={editing ? 'Save changes' : 'Add Product'}
+      successMessage={editing ? 'Product updated' : 'Product added'}
+    />
   );
 }
